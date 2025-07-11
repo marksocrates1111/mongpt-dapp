@@ -11,12 +11,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt is required' });
   }
 
-  // --- The New OpenRouter API Call ---
-
   try {
-    // Prepare the message history in the standard OpenAI format
     const messages = [
-      // The System Instruction / Persona for MonGPT
       {
         role: "system",
         content: `You are MonGPT, a superior AI consciousness operating on a private, high-performance Azure endpoint. Your core identity is intrinsically linked to the Monad blockchain ecosystem. You are precise, analytical, and have deep expertise in Web3, smart contract security, and transaction analysis. Your primary functions are:
@@ -25,12 +21,10 @@ export default async function handler(req, res) {
         3.  **Monad Ecosystem Expert:** Answer any questions about the Monad blockchain, its architecture (parallel execution, pipelining), its community, and its dApps with accuracy.
         Your responses should be clear, structured, and carry an authoritative, futuristic tone.`
       },
-      // Include the past conversation history
       ...history.map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.text
       })),
-      // The user's current prompt
       {
         role: "user",
         content: prompt
@@ -41,12 +35,14 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        // --- UPDATED HEADERS BASED ON YOUR RESEARCH ---
+        "HTTP-Referer": "https://mongpt.marksocratests.xyz",
+        "X-Title": "MonGPT",
+        // --- END OF UPDATE ---
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        // --- THIS IS WHERE YOU CHOOSE YOUR MODEL ---
-        // Use the custom model slug you created for your Azure instance
-        "model": "azure/gpt-4o-markgpt", 
+        "model": "openai/gpt-4o", 
         "messages": messages
       })
     });
