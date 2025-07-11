@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="[https://raw.githubusercontent.com/marksocrates1111/mongpt-dapp/main/public/logo.png](https://raw.githubusercontent.com/marksocrates1111/mongpt-dapp/refs/heads/main/MonGPT.jpg)" alt="MonGPT Logo" width="150">
+  <img src="https://raw.githubusercontent.com/marksocrates1111/mongpt-dapp/refs/heads/main/MonGPT.jpg" alt="MonGPT Logo" width="150">
   <h1>MonGPT</h1>
   <p>
     <b>The Analytical Consciousness of the Monad Blockchain</b>
