@@ -35,14 +35,13 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        // --- UPDATED HEADERS BASED ON YOUR RESEARCH ---
         "HTTP-Referer": "https://mongpt.marksocratests.xyz",
         "X-Title": "MonGPT",
-        // --- END OF UPDATE ---
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        "model": "openai/gpt-4o", 
+        // Reverted to use your custom Azure model slug.
+        "model": "gpt-4o", 
         "messages": messages
       })
     });
