@@ -36,7 +36,7 @@ const { chains, publicClient } = configureChains(
 
 const { connectors } = getDefaultWallets({
   appName: 'MonGPT',
-  projectId: 'YOUR_WALLETCONNECT_PROJECT_ID', // IMPORTANT: Get this from WalletConnect Cloud
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID, // IMPORTANT: Get this from WalletConnect Cloud
   chains,
 });
 
