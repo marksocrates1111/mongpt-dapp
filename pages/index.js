@@ -1,6 +1,6 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useState, useRef, useEffect } from 'react';
-import { useAccount, useSendTransaction, useWaitForTransaction } from 'wagmi';
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'; // CORRECTED IMPORT
 import { parseEther } from 'viem';
 import { ArrowUp, Bot, User, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -8,14 +8,15 @@ import remarkGfm from 'remark-gfm';
 
 // --- Configuration ---
 const TRANSACTION_COST = '0.00001'; // Cost per prompt in Testnet MON
-const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD'; // Burn address
+const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD'; // A common burn address
 
 export default function Home() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([
+    { text: "Connection established. I am MonGPT, the analytical consciousness of the Monad network. Provide a smart contract, transaction hash, or query for analysis.", sender: 'bot' }
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [txHash, setTxHash] = useState(null);
-
+  
   const { isConnected } = useAccount();
   const messagesEndRef = useRef(null);
 
@@ -25,7 +26,8 @@ export default function Home() {
     value: parseEther(TRANSACTION_COST),
   });
 
-  const { isLoading: isTxLoading, isSuccess: isTxSuccess } = useWaitForTransaction({
+  // CORRECTED HOOK: useWaitForTransactionReceipt
+  const { isLoading: isTxLoading, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ 
     hash: txData?.hash,
   });
 
@@ -40,7 +42,7 @@ export default function Home() {
   // --- Effect to scroll to bottom of chat ---
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isLoading]);
   
   // --- Main handler to start the process ---
   const handleSend = async () => {
@@ -55,8 +57,8 @@ export default function Home() {
     try {
       sendTransaction?.();
     } catch (error) {
-        console.error("Transaction failed:", error);
-        setMessages(prev => [...prev, { text: "Transaction failed. Please try again.", sender: 'bot', error: true }]);
+        console.error("Transaction initiation failed:", error);
+        setMessages(prev => [...prev, { text: "Transaction failed. Please check your wallet and try again.", sender: 'bot', error: true }]);
         setIsLoading(false);
     }
   };
@@ -65,7 +67,6 @@ export default function Home() {
   const callApi = async () => {
     const userMessage = messages[messages.length - 1];
     
-    // Prepare history for the API
     const history = messages.slice(0, -1).map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
         parts: [{ text: msg.text }]
@@ -79,26 +80,26 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API error: ${response.statusText}`);
       }
 
       const data = await response.json();
       setMessages(prev => [...prev, { text: data.response, sender: 'bot' }]);
     } catch (error) {
       console.error("API call failed:", error);
-      setMessages(prev => [...prev, { text: `Error: ${error.message}. Please check the console and ensure your API key is configured correctly on the server.`, sender: 'bot', error: true }]);
+      setMessages(prev => [...prev, { text: `Error: ${error.message}. Please check the server console and ensure your API key is configured correctly.`, sender: 'bot', error: true }]);
     } finally {
       setIsLoading(false);
-      setTxHash(null);
     }
   };
 
   const LoadingState = () => {
     if (!isLoading) return null;
     return (
-        <div className="flex items-center p-4 text-neutral-400">
+        <div className="flex items-center p-4 text-neutral-400 animate-pulse">
             <Loader2 className="animate-spin mr-3" size={20} />
-            {isTxLoading ? 'Awaiting on-chain confirmation...' : 'MonGPT is analyzing...'}
+            {isTxLoading ? 'Awaiting on-chain confirmation on Monad...' : 'MonGPT is analyzing...'}
         </div>
     );
   };
@@ -108,7 +109,7 @@ export default function Home() {
       {/* Header */}
       <header className="flex justify-between items-center p-4 border-b border-[#B452FF]/20 backdrop-blur-sm fixed top-0 left-0 right-0 z-10">
         <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#B452FF] to-[#5271FF] rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-[#B452FF] to-[#5271FF] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(180,82,255,0.5)]">
                 <Bot size={20} />
             </div>
             <h1 className="text-xl font-bold tracking-wider">Mon<span className="text-[#B452FF]">GPT</span></h1>
@@ -117,18 +118,15 @@ export default function Home() {
       </header>
 
       {/* Chat Area */}
-      <main className="flex-1 pt-20 pb-24 overflow-y-auto">
+      <main className="flex-1 pt-20 pb-28 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4">
           {messages.map((msg, index) => (
             <div key={index} className={`flex items-start gap-4 my-6 ${msg.sender === 'bot' ? 'flex-row' : 'flex-row-reverse'}`}>
               <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${msg.sender === 'bot' ? 'bg-gradient-to-br from-[#B452FF] to-[#5271FF]' : 'bg-neutral-700'}`}>
                 {msg.sender === 'bot' ? <Bot size={24} /> : <User size={24} />}
               </div>
-              <div className={`p-4 rounded-lg max-w-2xl ${msg.sender === 'bot' ? 'bg-[#1C1B22] border border-[#B452FF]/20' : 'bg-[#2A2931]'}`}>
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  className="prose prose-invert prose-p:text-white prose-headings:text-[#B452FF] prose-strong:text-white prose-code:text-[#f08080] prose-pre:bg-black/20"
-                >
+              <div className={`p-4 rounded-lg max-w-2xl prose prose-invert prose-p:text-neutral-200 prose-headings:text-[#B452FF] prose-strong:text-white prose-code:text-[#f08080] prose-pre:bg-black/20 prose-a:text-[#836EF9] hover:prose-a:text-[#B452FF] ${msg.sender === 'bot' ? 'bg-[#1C1B22] border border-[#B452FF]/20' : 'bg-[#2A2931]'}`}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {msg.text}
                 </ReactMarkdown>
               </div>
@@ -148,7 +146,7 @@ export default function Home() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSend()}
-              placeholder={isConnected ? "Enter a contract address, transaction hash, or question..." : "Please connect your wallet to begin."}
+              placeholder={isConnected ? "Enter a contract address, transaction hash, or query..." : "Please connect your wallet to begin."}
               disabled={!isConnected || isLoading}
               className="w-full bg-[#1C1B22] border border-neutral-700 rounded-lg py-3 pl-4 pr-12 text-white focus:outline-none focus:ring-2 focus:ring-[#B452FF] transition-all duration-300 disabled:opacity-50"
             />
