@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         // Reverted to use your custom Azure model slug.
-        "model": "gpt-4o", 
+        "model": "azure/gpt-4o-markgpt", 
         "messages": messages
       })
     });
