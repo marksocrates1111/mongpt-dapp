@@ -1,6 +1,6 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useState, useRef, useEffect } from 'react';
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useSendTransaction, usePublicClient } from 'wagmi';
 import { parseEther } from 'viem';
 import { ArrowUp, Bot, User, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -15,74 +15,61 @@ export default function Home() {
     { text: "Connection established. I am MonGPT, the analytical consciousness of the Monad network. Provide a smart contract, transaction hash, or query for analysis.", sender: 'bot' }
   ]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  // --- NEW: State to explicitly hold the transaction hash ---
-  const [txHash, setTxHash] = useState(null);
+  const [loadingMessage, setLoadingMessage] = useState('');
   
   const { isConnected } = useAccount();
   const messagesEndRef = useRef(null);
 
-  // --- Transaction Hooks ---
-  const { isPending: isTxPending, sendTransactionAsync } = useSendTransaction();
+  const { sendTransactionAsync } = useSendTransaction();
+  const publicClient = usePublicClient();
 
-  // The hook now watches our explicit txHash state
-  const { isLoading: isTxLoading, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ 
-    hash: txHash,
-  });
-
-  // --- Effect to handle successful transaction and call AI ---
-  useEffect(() => {
-    // Only call API if the transaction was successful and we have a hash
-    if (isTxSuccess && txHash) {
-      console.log('Transaction confirmed:', txHash);
-      callApi();
-    }
-  }, [isTxSuccess, txHash]); 
-
-  // --- Effect to scroll to bottom of chat ---
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+  }, [messages, loadingMessage]);
   
-  // --- REFACTORED: Main handler to start the process ---
   const handleSend = async () => {
-    if (!input.trim() || !isConnected || isLoading) return;
+    if (!input.trim() || !isConnected || loadingMessage) return;
     
     const userMessage = { text: input, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
-    setIsLoading(true);
 
+    let hash;
     try {
-      // Use the async version to await the hash
-      const hash = await sendTransactionAsync({
+      setLoadingMessage('Awaiting signature in your wallet...');
+      hash = await sendTransactionAsync({
         to: BURN_ADDRESS,
         value: parseEther(TRANSACTION_COST),
       });
-      // Explicitly set the hash in our state to trigger the watcher hook
-      setTxHash(hash);
+
+      setLoadingMessage('Awaiting on-chain confirmation on Monad...');
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      setLoadingMessage('MonGPT is analyzing...');
+      await callApi(currentInput, hash);
+
     } catch (error) {
-      console.error("Transaction failed:", error.message);
-      // If user rejects or it fails, reset the UI state
+      console.error("Process failed:", error.message);
       setMessages(prev => prev.slice(0, -1));
-      setIsLoading(false);
+    } finally {
+      setLoadingMessage('');
     }
   };
 
   // --- REFACTORED: Function to call our backend API ---
-  const callApi = async () => {
-    const userMessage = messages[messages.length - 1];
-    
-    const history = messages.slice(0, -1).filter(m => !m.error).map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.text }]
+  const callApi = async (prompt, txHash) => {
+    // CORRECTED: Create a simple history array that the backend can process.
+    const history = messages.filter(m => !m.error).map(msg => ({
+        sender: msg.sender,
+        text: msg.text
     }));
 
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: userMessage.text, history: history }),
+            body: JSON.stringify({ prompt: prompt, history: history }),
         });
 
         if (!response.ok) {
@@ -95,26 +82,16 @@ export default function Home() {
     } catch (error) {
         console.error("API call failed:", error);
         setMessages(prev => [...prev, { text: `Error: ${error.message}. Please check the server console.`, sender: 'bot', error: true }]);
-    } finally {
-        setIsLoading(false);
-        setTxHash(null); // Reset hash for the next transaction
     }
   };
 
   const LoadingState = () => {
-    if (!isLoading) return null;
-
-    let text = 'MonGPT is analyzing...';
-    if (isTxPending) {
-      text = 'Awaiting signature in your wallet...';
-    } else if (isTxLoading) {
-      text = 'Awaiting on-chain confirmation on Monad...';
-    }
+    if (!loadingMessage) return null;
 
     return (
         <div className="flex items-center p-4 text-neutral-400 animate-pulse">
             <Loader2 className="animate-spin mr-3" size={20} />
-            {text}
+            {loadingMessage}
         </div>
     );
   };
@@ -160,14 +137,14 @@ export default function Home() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSend()}
+              onKeyDown={(e) => e.key === 'Enter' && !loadingMessage && handleSend()}
               placeholder={isConnected ? "Enter a contract address, transaction hash, or query..." : "Please connect your wallet to begin."}
-              disabled={!isConnected || isLoading}
+              disabled={!isConnected || !!loadingMessage}
               className="w-full bg-[#1C1B22] border border-neutral-700 rounded-lg py-3 pl-4 pr-12 text-white focus:outline-none focus:ring-2 focus:ring-[#B452FF] transition-all duration-300 disabled:opacity-50"
             />
             <button
               onClick={handleSend}
-              disabled={!isConnected || isLoading || !input.trim()}
+              disabled={!isConnected || !!loadingMessage || !input.trim()}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md bg-[#B452FF] text-white hover:bg-[#a341f0] disabled:bg-neutral-600 disabled:cursor-not-allowed transition-all duration-300"
             >
               <ArrowUp size={20} />
