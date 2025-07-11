@@ -1,4 +1,15 @@
 // This file replaces pages/api/chat.js
+import OpenAI from 'openai';
+
+// --- Initialize the official OpenAI Client to connect to your Azure endpoint ---
+// This requires your Azure endpoint, key, and the specific deployment name.
+const azureClient = new OpenAI({
+  apiKey: process.env.AZURE_OPENAI_KEY,
+  baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/deployments/${process.env.AZURE_DEPLOYMENT_NAME}`,
+  defaultQuery: { "api-version": "2024-02-01" },
+  defaultHeaders: { "api-key": process.env.AZURE_OPENAI_KEY },
+});
+
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -31,33 +42,21 @@ export default async function handler(req, res) {
       }
     ];
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://mongpt.marksocratests.xyz",
-        "X-Title": "MonGPT",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        // Reverted to use your custom Azure model slug.
-        "model": "azure/gpt-4o-markgpt", 
-        "messages": messages
-      })
+    // Use the new client.chat.completions.create method
+    const result = await azureClient.chat.completions.create({
+      model: "", // Model is inferred from the deployment name in the URL, can be left empty
+      messages: messages,
+      max_tokens: 4096,
     });
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error.message || `API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
+    const aiResponse = result.choices[0].message.content;
     
     res.status(200).json({ response: aiResponse });
 
   } catch (error) {
-    console.error('Error calling OpenRouter API:', error);
-    res.status(500).json({ error: 'Failed to get response from AI' });
+    console.error('Error calling Azure OpenAI API:', error);
+    // Provide more detailed error info back to the client if in a dev environment
+    const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
+    res.status(500).json({ error: `Failed to get response from AI: ${errorMessage}` });
   }
 }
