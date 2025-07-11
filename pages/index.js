@@ -16,90 +16,88 @@ export default function Home() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // --- NEW: State to explicitly hold the transaction hash ---
+  const [txHash, setTxHash] = useState(null);
   
   const { isConnected } = useAccount();
   const messagesEndRef = useRef(null);
 
   // --- Transaction Hooks ---
-  // We now get the isPending state to track when the wallet is waiting for user signature.
-  const { data: txData, isPending: isTxPending, sendTransaction } = useSendTransaction();
+  const { isPending: isTxPending, sendTransactionAsync } = useSendTransaction();
 
-  // CORRECTED HOOK: useWaitForTransactionReceipt
+  // The hook now watches our explicit txHash state
   const { isLoading: isTxLoading, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ 
-    hash: txData?.hash,
+    hash: txHash,
   });
 
   // --- Effect to handle successful transaction and call AI ---
   useEffect(() => {
-    if (isTxSuccess) {
-      console.log('Transaction confirmed:', txData?.hash);
+    // Only call API if the transaction was successful and we have a hash
+    if (isTxSuccess && txHash) {
+      console.log('Transaction confirmed:', txHash);
       callApi();
     }
-  }, [isTxSuccess, txData?.hash]); // Added txData.hash to dependency array
+  }, [isTxSuccess, txHash]); 
 
   // --- Effect to scroll to bottom of chat ---
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
   
-  // --- Main handler to start the process ---
-  const handleSend = () => {
-    if (!input.trim() || !isConnected) return;
+  // --- REFACTORED: Main handler to start the process ---
+  const handleSend = async () => {
+    if (!input.trim() || !isConnected || isLoading) return;
     
-    // Optimistically add user message to UI
     const userMessage = { text: input, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
-    // Use the onError callback to handle user rejection or other errors.
-    sendTransaction({
-      to: BURN_ADDRESS,
-      value: parseEther(TRANSACTION_COST),
-    }, {
-      onError: (error) => {
-        console.error("Transaction failed:", error.message);
-        // If the user rejects the transaction, remove the optimistic message and reset the UI.
-        setMessages(prev => prev.slice(0, -1));
-        setIsLoading(false);
-      }
-    });
+    try {
+      // Use the async version to await the hash
+      const hash = await sendTransactionAsync({
+        to: BURN_ADDRESS,
+        value: parseEther(TRANSACTION_COST),
+      });
+      // Explicitly set the hash in our state to trigger the watcher hook
+      setTxHash(hash);
+    } catch (error) {
+      console.error("Transaction failed:", error.message);
+      // If user rejects or it fails, reset the UI state
+      setMessages(prev => prev.slice(0, -1));
+      setIsLoading(false);
+    }
   };
 
-  // --- Function to call our backend API ---
+  // --- REFACTORED: Function to call our backend API ---
   const callApi = async () => {
-    // Ensure we don't call the API multiple times for the same transaction
-    if (!messages.find(m => m.txHash === txData?.hash)) {
-        const userMessage = messages.find(m => m.sender === 'user' && !m.processed);
-        if (userMessage) {
-            userMessage.processed = true; // Mark as processed
+    const userMessage = messages[messages.length - 1];
+    
+    const history = messages.slice(0, -1).filter(m => !m.error).map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text }]
+    }));
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: userMessage.text, history: history }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `API error: ${response.statusText}`);
         }
 
-        const history = messages.slice(0, -1).filter(m => !m.error).map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text }]
-        }));
-
-        try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: userMessage.text, history: history }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `API error: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            setMessages(prev => [...prev, { text: data.response, sender: 'bot', txHash: txData?.hash }]);
-        } catch (error) {
-            console.error("API call failed:", error);
-            setMessages(prev => [...prev, { text: `Error: ${error.message}. Please check the server console and ensure your API key is configured correctly.`, sender: 'bot', error: true }]);
-        } finally {
-            setIsLoading(false);
-        }
+        const data = await response.json();
+        setMessages(prev => [...prev, { text: data.response, sender: 'bot', txHash: txHash }]);
+    } catch (error) {
+        console.error("API call failed:", error);
+        setMessages(prev => [...prev, { text: `Error: ${error.message}. Please check the server console.`, sender: 'bot', error: true }]);
+    } finally {
+        setIsLoading(false);
+        setTxHash(null); // Reset hash for the next transaction
     }
   };
 
