@@ -20,7 +20,11 @@
     pointer-events: none;
 }
 
-.loaderContent .logoChar {
+.loaderContent {
+    /* This can be used to style the M o n G P T text container if needed */
+}
+
+.logoChar {
     font-size: 5rem;
     font-weight: 700;
     color: #B452FF;
@@ -53,14 +57,47 @@
     color: #888;
 }
 
-.clickToBegin {
+.buttonContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
     margin-top: 2rem;
-    font-size: 1.2rem;
-    letter-spacing: 3px;
-    color: #EAEAEA;
-    text-shadow: 0 0 10px #B452FF;
-    animation: pulse 2s infinite;
 }
+
+.beginButton {
+    background: #B452FF;
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    font-family: 'Roboto Mono', monospace;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    text-shadow: 0 0 10px rgba(180, 82, 255, 0.7);
+}
+.beginButton:hover {
+    transform: scale(1.05);
+}
+
+.skipButton {
+    background: none;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Roboto Mono', monospace;
+    transition: all 0.2s ease-in-out;
+}
+
+.skipButton:hover {
+    background-color: rgba(58, 57, 65, 0.8);
+    color: #fff;
+    border-color: #666;
+}
+
 
 .videoPlayer {
     background-color: #000;

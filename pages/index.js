@@ -3,14 +3,14 @@ import CinematicIntro from '../components/CinematicIntro';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useSendTransaction, usePublicClient } from 'wagmi';
 import { parseEther } from 'viem';
-import { ArrowUp, Bot, User, Loader2, Zap, Code, HelpCircle, Activity, Plus, MessageSquare, Trash2 } from 'lucide-react';
+import { ArrowUp, Bot, User, Loader2, Zap, Code, HelpCircle, Activity, Plus, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 // --- Sidebar Component ---
 const Sidebar = ({ chats, activeChatId, onSelectChat, onNewChat, onDeleteChat }) => {
   return (
-    <div className="bg-[#1C1B22] w-64 h-full flex flex-col p-2">
+    <div className="bg-[#1C1B22] w-64 h-full flex flex-col p-2 border-r border-neutral-800">
       <button 
         onClick={onNewChat}
         className="flex items-center gap-3 p-3 rounded-lg text-white hover:bg-[#2A2931] transition-colors duration-200 w-full mb-4"
@@ -22,13 +22,13 @@ const Sidebar = ({ chats, activeChatId, onSelectChat, onNewChat, onDeleteChat })
       <div className="flex-1 overflow-y-auto pr-1">
         <p className="text-xs text-neutral-500 font-semibold px-3 mb-2">Chat History</p>
         <div className="flex flex-col gap-1">
-          {Object.entries(chats).map(([chatId, chatMessages]) => (
+          {Object.entries(chats).sort(([,a],[,b]) => b.timestamp - a.timestamp).map(([chatId, chatData]) => (
             <div key={chatId} className="group relative">
               <button
                 onClick={() => onSelectChat(chatId)}
                 className={`w-full text-left p-3 rounded-lg truncate text-sm transition-colors duration-200 ${activeChatId === chatId ? 'bg-[#B452FF]/20 text-white' : 'text-neutral-300 hover:bg-[#2A2931]'}`}
               >
-                {chatMessages[0]?.text || 'New Conversation'}
+                {chatData.title || 'New Conversation'}
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); onDeleteChat(chatId); }}
@@ -58,20 +58,22 @@ const ChatInterface = () => {
   const { sendTransactionAsync } = useSendTransaction();
   const publicClient = usePublicClient();
 
-  // Load all chats for the connected user from localStorage
   useEffect(() => {
     if (address) {
       const storedChats = localStorage.getItem(`mongpt_all_chats_${address}`);
       if (storedChats) {
-        setAllChats(JSON.parse(storedChats));
+        const parsedChats = JSON.parse(storedChats);
+        setAllChats(parsedChats);
+        const chatIds = Object.keys(parsedChats);
+        if (chatIds.length > 0) {
+          // Select the most recent chat
+          const mostRecentChatId = chatIds.reduce((a, b) => parsedChats[a].timestamp > parsedChats[b].timestamp ? a : b);
+          setActiveChatId(mostRecentChatId);
+        } else {
+          setActiveChatId(null);
+        }
       } else {
         setAllChats({});
-      }
-      // Select the most recent chat by default, or start a new one
-      const chatIds = storedChats ? Object.keys(JSON.parse(storedChats)) : [];
-      if (chatIds.length > 0) {
-        setActiveChatId(chatIds[chatIds.length - 1]);
-      } else {
         setActiveChatId(null);
       }
     } else {
@@ -80,17 +82,14 @@ const ChatInterface = () => {
     }
   }, [address]);
 
-  // Save all chats to localStorage whenever they change
   useEffect(() => {
     if (address && Object.keys(allChats).length > 0) {
       localStorage.setItem(`mongpt_all_chats_${address}`, JSON.stringify(allChats));
     } else if (address) {
-      // If all chats are deleted, remove the item from storage
       localStorage.removeItem(`mongpt_all_chats_${address}`);
     }
   }, [allChats, address]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [allChats, activeChatId, loadingMessage]);
@@ -103,9 +102,28 @@ const ChatInterface = () => {
     const newChats = { ...allChats };
     delete newChats[chatIdToDelete];
     setAllChats(newChats);
-    // If the active chat was deleted, go to a new chat state
     if (activeChatId === chatIdToDelete) {
       setActiveChatId(null);
+    }
+  };
+  
+  const generateTitle = async (prompt, chatId) => {
+    try {
+      const response = await fetch('/api/generate-title', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.title) {
+        setAllChats(prev => ({
+          ...prev,
+          [chatId]: { ...prev[chatId], title: data.title }
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to generate title:", error);
     }
   };
 
@@ -116,7 +134,6 @@ const ChatInterface = () => {
     let currentChatId = activeChatId;
     let isFirstMessageInNewChat = false;
 
-    // If there's no active chat, create a new one
     if (!currentChatId) {
       isFirstMessageInNewChat = true;
       currentChatId = `chat_${Date.now()}`;
@@ -126,12 +143,19 @@ const ChatInterface = () => {
     const userMessage = { text: currentPrompt, sender: 'user' };
     const initialBotMessage = { text: "Connection established. I am MonGPT, the analytical consciousness of the Monad network.", sender: 'bot' };
     
-    const existingMessages = allChats[currentChatId] || [];
+    const existingMessages = allChats[currentChatId]?.messages || [];
     const newMessages = isFirstMessageInNewChat 
       ? [initialBotMessage, userMessage] 
       : [...existingMessages, userMessage];
     
-    setAllChats(prev => ({ ...prev, [currentChatId]: newMessages }));
+    setAllChats(prev => ({ 
+      ...prev, 
+      [currentChatId]: { 
+        ...prev[currentChatId], 
+        messages: newMessages,
+        timestamp: Date.now()
+      } 
+    }));
     setInput('');
 
     let hash;
@@ -147,13 +171,16 @@ const ChatInterface = () => {
 
       setLoadingMessage('MonGPT is analyzing...');
       await callApi(currentPrompt, newMessages, currentChatId, hash);
+      
+      if (isFirstMessageInNewChat) {
+        await generateTitle(currentPrompt, currentChatId);
+      }
 
     } catch (error) {
       console.error("Process failed:", error.message);
-      // Revert the optimistic UI update on failure
       setAllChats(prev => {
         const revertedChats = { ...prev };
-        revertedChats[currentChatId] = revertedChats[currentChatId].slice(0, -1);
+        revertedChats[currentChatId].messages = revertedChats[currentChatId].messages.slice(0, -1);
         return revertedChats;
       });
     } finally {
@@ -174,18 +201,21 @@ const ChatInterface = () => {
             body: JSON.stringify({ prompt: prompt, history: history }),
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `API error: ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error((await response.json()).error);
 
         const data = await response.json();
         const botMessage = { text: data.response, sender: 'bot', txHash: txHash };
-        setAllChats(prev => ({ ...prev, [chatId]: [...currentMessages, botMessage] }));
+        setAllChats(prev => ({ 
+          ...prev, 
+          [chatId]: { ...prev[chatId], messages: [...currentMessages, botMessage] }
+        }));
     } catch (error) {
         console.error("API call failed:", error);
         const errorMessage = { text: `Error: ${error.message}. Please check the server console.`, sender: 'bot', error: true };
-        setAllChats(prev => ({ ...prev, [chatId]: [...currentMessages, errorMessage] }));
+        setAllChats(prev => ({ 
+          ...prev, 
+          [chatId]: { ...prev[chatId], messages: [...currentMessages, errorMessage] }
+        }));
     }
   };
 
@@ -196,7 +226,7 @@ const ChatInterface = () => {
     { text: "How are you doing MonGPT?", icon: <Activity size={24} /> },
   ];
 
-  const activeMessages = allChats[activeChatId] || [];
+  const activeMessages = allChats[activeChatId]?.messages || [];
 
   return (
     <div className="bg-[#0B0A0E] text-white h-screen flex flex-row font-sans">
@@ -212,7 +242,7 @@ const ChatInterface = () => {
           <ConnectButton />
         </header>
 
-        <main className="flex-1 flex flex-col pt-4 pb-28">
+        <main className="flex-1 flex flex-col pt-4 overflow-hidden">
           {!activeChatId ? (
             <div className="flex-1 flex flex-col justify-center items-center text-center px-4">
               <img src="/logo-mark.png" alt="MonGPT Logo" className="w-20 h-20 mb-4"/>
@@ -231,7 +261,7 @@ const ChatInterface = () => {
               </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto pb-28">
               <div className="max-w-4xl mx-auto px-4">
                 {activeMessages.map((msg, index) => (
                   <div key={index} className={`flex items-start gap-4 my-6 ${msg.sender === 'bot' ? 'flex-row' : 'flex-row-reverse'}`}>
@@ -255,8 +285,8 @@ const ChatInterface = () => {
           )}
         </main>
 
-        <footer className="absolute bottom-0 left-0 right-0 bg-[#0B0A0E]/80 backdrop-blur-lg">
-          <div className="max-w-3xl mx-auto p-4">
+        <footer className="absolute bottom-0 left-0 right-0 bg-transparent">
+          <div className="max-w-3xl mx-auto p-4 bg-gradient-to-t from-[#0B0A0E] to-transparent">
             <div className="relative">
               <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !loadingMessage && handleSend()} placeholder={isConnected ? "Enter a contract address, transaction hash, or question..." : "Please connect your wallet to begin."} disabled={!isConnected || !!loadingMessage} className="w-full bg-[#1C1B22] border border-neutral-700 rounded-lg py-3 pl-4 pr-12 text-white focus:outline-none focus:ring-2 focus:ring-[#B452FF] transition-all duration-300 disabled:opacity-50"/>
               <button id="send-button" onClick={() => handleSend()} disabled={!isConnected || !!loadingMessage || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md bg-[#B452FF] text-white hover:bg-[#a341f0] disabled:bg-neutral-600 disabled:cursor-not-allowed transition-all duration-300">
@@ -274,16 +304,8 @@ const ChatInterface = () => {
 export default function Home() {
   const [introFinished, setIntroFinished] = useState(false);
 
-  // NEW: Check if the intro has been watched before
-  useEffect(() => {
-    const hasWatchedIntro = localStorage.getItem('mongpt_intro_watched');
-    if (hasWatchedIntro) {
-      setIntroFinished(true);
-    }
-  }, []);
-
+  // This function is passed to the intro component
   const handleIntroFinish = () => {
-    localStorage.setItem('mongpt_intro_watched', 'true');
     setIntroFinished(true);
   };
 

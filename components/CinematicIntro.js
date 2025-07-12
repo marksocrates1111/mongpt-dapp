@@ -4,12 +4,11 @@ import styles from './CinematicIntro.module.css';
 const CinematicIntro = ({ onFinished }) => {
   const [loadProgress, setLoadProgress] = useState(0);
   const [loadText, setLoadText] = useState('BUFFERING CINEMATIC INTRO...');
-  const [isReady, setIsReady] = useState(false); // State to track if video is ready
-  const [phase, setPhase] = useState('loading'); // loading -> ready -> video -> logo -> finished
+  const [isReady, setIsReady] = useState(false);
+  const [phase, setPhase] = useState('loading');
   const videoRef = useRef(null);
 
   useEffect(() => {
-    // This is the working URL you confirmed.
     const videoUrl = 'https://raw.githubusercontent.com/marksocrates1111/mongpt-dapp/refs/heads/main/public/videos/MonGPT-Intro.mp4';
 
     const xhr = new XMLHttpRequest();
@@ -31,29 +30,28 @@ const CinematicIntro = ({ onFinished }) => {
         if (videoRef.current) {
           videoRef.current.src = blobUrl;
         }
-        setLoadText('[ CLICK TO BEGIN ]');
-        setIsReady(true); // Video is loaded and ready to be played
+        setLoadText(''); // Clear loading text
+        setIsReady(true);
       } else {
-        setLoadText('ERROR: FAILED TO LOAD ASSETS. SKIPPING INTRO.');
-        setTimeout(() => onFinished(), 2000);
+        setLoadText('ERROR: FAILED TO LOAD ASSETS.');
+        // Still show skip button on error
+        setIsReady(true); 
       }
     };
     
     xhr.onerror = () => {
-      setLoadText('ERROR: FAILED TO LOAD ASSETS. SKIPPING INTRO.');
-      setTimeout(() => onFinished(), 2000);
+      setLoadText('ERROR: FAILED TO LOAD ASSETS.');
+      setIsReady(true);
     };
 
     xhr.send();
-  }, [onFinished]);
+  }, []);
 
   const handleStart = () => {
-    if (isReady && videoRef.current) {
+    if (isReady && videoRef.current && videoRef.current.src) {
       setPhase('video');
-      // Attempt to play the video with sound
       videoRef.current.play().catch(error => {
           console.error("Video autoplay with sound failed:", error);
-          // Fallback for browsers that block audio autoplay
           videoRef.current.muted = true;
           videoRef.current.play();
       });
@@ -61,27 +59,24 @@ const CinematicIntro = ({ onFinished }) => {
       videoRef.current.onended = () => {
         setPhase('logo');
       };
+    } else {
+      // If video failed to load, just skip
+      onFinished();
     }
   };
   
   useEffect(() => {
     if (phase === 'logo') {
       const timer = setTimeout(() => {
-        setPhase('finished');
         onFinished();
-      }, 3000); // Duration of logo screen before fading to app
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [phase, onFinished]);
 
   return (
     <>
-      {/* Phase 1: Loading / Ready Screen */}
-      <div 
-        className={`${styles.fullscreenContainer} ${phase === 'loading' || phase === 'ready' ? styles.visible : ''}`}
-        onClick={handleStart}
-        style={{ cursor: isReady ? 'pointer' : 'default' }}
-      >
+      <div className={`${styles.fullscreenContainer} ${phase === 'loading' || phase === 'ready' ? styles.visible : ''}`}>
         <div className={styles.loaderContent}>
             <span className={styles.logoChar} style={{ animationDelay: '0.1s' }}>M</span>
             <span className={styles.logoChar} style={{ animationDelay: '0.2s' }}>o</span>
@@ -98,16 +93,21 @@ const CinematicIntro = ({ onFinished }) => {
             <p className={styles.progressText}>{loadText}</p>
           </>
         ) : (
-          <p className={styles.clickToBegin}>{loadText}</p>
+          <div className={styles.buttonContainer}>
+            <button onClick={handleStart} className={styles.beginButton}>
+              Begin Intro
+            </button>
+            <button onClick={onFinished} className={styles.skipButton}>
+              Skip Intro
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Phase 2: Video Player */}
       <div className={`${styles.fullscreenContainer} ${styles.videoPlayer} ${phase === 'video' ? styles.visible : ''}`}>
-        <video ref={videoRef} className={styles.introVideo} playsInline preload="auto"></video> {/* Sound is enabled by default, muted is removed */}
+        <video ref={videoRef} className={styles.introVideo} playsInline preload="auto"></video>
       </div>
       
-      {/* Phase 3: Logo Transformation */}
       <div className={`${styles.fullscreenContainer} ${phase === 'logo' ? styles.visible : ''}`}>
         <div className={styles.logoContainer}>
             <div className={styles.logoMark}></div>
