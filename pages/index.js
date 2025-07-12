@@ -108,7 +108,7 @@ const ChatInterface = () => {
             <div key={index} className={`flex items-start gap-4 my-6 ${msg.sender === 'bot' ? 'flex-row' : 'flex-row-reverse'}`}>
               <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${msg.sender === 'bot' ? 'bg-gradient-to-br from-[#B452FF] to-[#5271FF]' : 'bg-neutral-700'}`}>
                 {/* UPDATED: Replaced the Bot icon with your custom logo */}
-                {msg.sender === 'bot' ? <img src="/logo-mark.png" alt="MonGPT Avatar" className="w-6 h-6" /> : <User size={24} />}
+                {msg.sender === 'bot' ? <img src="/logo-mark-transparent.png" alt="MonGPT Avatar" className="w-6 h-6" /> : <User size={24} />}
               </div>
               <div className={`p-4 rounded-lg max-w-2xl prose prose-invert prose-p:text-neutral-200 prose-headings:text-[#B452FF] prose-strong:text-white prose-code:text-[#f08080] prose-pre:bg-black/20 prose-a:text-[#836EF9] hover:prose-a:text-[#B452FF] ${msg.sender === 'bot' ? 'bg-[#1C1B22] border border-[#B452FF]/20' : 'bg-[#2A2931]'}`}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
