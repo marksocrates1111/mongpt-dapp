@@ -9,7 +9,6 @@ const CinematicIntro = ({ onFinished }) => {
   const videoRef = useRef(null);
 
   useEffect(() => {
-    // Using your self-hosted video URL
     const videoUrl = 'http://marksocratests.xyz/MonGPT-Intro.mp4'; 
 
     const xhr = new XMLHttpRequest();
@@ -34,12 +33,14 @@ const CinematicIntro = ({ onFinished }) => {
         setLoadText('SEQUENCE READY. INITIALIZING...');
         setTimeout(() => setPhase('video'), 1500);
       } else {
+        console.error('Video load failed with status:', xhr.status);
         setLoadText('ERROR: FAILED TO LOAD ASSETS. SKIPPING INTRO.');
         setTimeout(() => onFinished(), 2000);
       }
     };
     
     xhr.onerror = () => {
+        console.error('Video load failed due to a network error.');
         setLoadText('ERROR: FAILED TO LOAD ASSETS. SKIPPING INTRO.');
         setTimeout(() => onFinished(), 2000);
     };
@@ -50,8 +51,8 @@ const CinematicIntro = ({ onFinished }) => {
   useEffect(() => {
     if (phase === 'video' && videoRef.current) {
       videoRef.current.play().catch(error => {
-        console.error("Video play failed:", error);
-        // If autoplay fails, skip to the end.
+        console.error("Video autoplay failed:", error);
+        // If autoplay is blocked by the browser, we skip the intro.
         onFinished();
       });
       videoRef.current.onended = () => {
