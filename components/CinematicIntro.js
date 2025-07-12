@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './CinematicIntro.module.css';
 
-// The onFinished prop is a function that will be called when the intro is over.
 const CinematicIntro = ({ onFinished }) => {
   const [loadProgress, setLoadProgress] = useState(0);
   const [loadText, setLoadText] = useState('BUFFERING CINEMATIC INTRO...');
-  const [phase, setPhase] = useState('loading'); // loading -> video -> logo -> finished
+  const [isReady, setIsReady] = useState(false); // State to track if video is ready
+  const [phase, setPhase] = useState('loading'); // loading -> ready -> video -> logo -> finished
   const videoRef = useRef(null);
 
   useEffect(() => {
-    const videoUrl = 'https://raw.githubusercontent.com/marksocrates1111/mongpt-dapp/refs/heads/main/public/videos/MonGPT-Intro.mp4'; 
+    // This is the working URL you confirmed.
+    const videoUrl = './videos/MonGPT-Intro.mp4';
 
     const xhr = new XMLHttpRequest();
     xhr.open('GET', videoUrl, true);
@@ -28,55 +29,60 @@ const CinematicIntro = ({ onFinished }) => {
         const videoBlob = xhr.response;
         const blobUrl = URL.createObjectURL(videoBlob);
         if (videoRef.current) {
-            videoRef.current.src = blobUrl;
+          videoRef.current.src = blobUrl;
         }
-        setLoadText('SEQUENCE READY. INITIALIZING...');
-        setTimeout(() => setPhase('video'), 1500);
+        setLoadText('[ CLICK TO BEGIN ]');
+        setIsReady(true); // Video is loaded and ready to be played
       } else {
-        console.error('Video load failed with status:', xhr.status);
         setLoadText('ERROR: FAILED TO LOAD ASSETS. SKIPPING INTRO.');
         setTimeout(() => onFinished(), 2000);
       }
     };
     
     xhr.onerror = () => {
-        console.error('Video load failed due to a network error.');
-        setLoadText('ERROR: FAILED TO LOAD ASSETS. SKIPPING INTRO.');
-        setTimeout(() => onFinished(), 2000);
+      setLoadText('ERROR: FAILED TO LOAD ASSETS. SKIPPING INTRO.');
+      setTimeout(() => onFinished(), 2000);
     };
 
     xhr.send();
   }, [onFinished]);
 
-  useEffect(() => {
-    if (phase === 'video' && videoRef.current) {
+  const handleStart = () => {
+    if (isReady && videoRef.current) {
+      setPhase('video');
+      // Attempt to play the video with sound
       videoRef.current.play().catch(error => {
-        console.error("Video autoplay failed:", error);
-        // If autoplay is blocked by the browser, we skip the intro.
-        onFinished();
+          console.error("Video autoplay with sound failed:", error);
+          // Fallback for browsers that block audio autoplay
+          videoRef.current.muted = true;
+          videoRef.current.play();
       });
+      
       videoRef.current.onended = () => {
         setPhase('logo');
       };
     }
-  }, [phase, onFinished]);
-
-  // This effect handles the logo animation after the video ends
+  };
+  
   useEffect(() => {
     if (phase === 'logo') {
       const timer = setTimeout(() => {
         setPhase('finished');
-        onFinished(); // Signal to the parent component that the intro is done
-      }, 3000); // Duration of the logo animation + fade out
+        onFinished();
+      }, 3000); // Duration of logo screen before fading to app
       return () => clearTimeout(timer);
     }
   }, [phase, onFinished]);
 
   return (
     <>
-      {/* Phase 1: Loading Screen */}
-      <div className={`${styles.fullscreenContainer} ${phase === 'loading' ? styles.visible : ''}`}>
-         <div className={styles.loaderContent}>
+      {/* Phase 1: Loading / Ready Screen */}
+      <div 
+        className={`${styles.fullscreenContainer} ${phase === 'loading' || phase === 'ready' ? styles.visible : ''}`}
+        onClick={handleStart}
+        style={{ cursor: isReady ? 'pointer' : 'default' }}
+      >
+        <div className={styles.loaderContent}>
             <span className={styles.logoChar} style={{ animationDelay: '0.1s' }}>M</span>
             <span className={styles.logoChar} style={{ animationDelay: '0.2s' }}>o</span>
             <span className={styles.logoChar} style={{ animationDelay: '0.3s' }}>n</span>
@@ -84,15 +90,21 @@ const CinematicIntro = ({ onFinished }) => {
             <span className={styles.logoChar} style={{ animationDelay: '0.5s' }}>P</span>
             <span className={styles.logoChar} style={{ animationDelay: '0.6s' }}>T</span>
         </div>
-        <div className={styles.progressBarContainer}>
-            <div className={styles.progressBar} style={{ width: `${loadProgress}%` }}></div>
-        </div>
-        <p className={styles.progressText}>{loadText}</p>
+        { !isReady ? (
+          <>
+            <div className={styles.progressBarContainer}>
+              <div className={styles.progressBar} style={{ width: `${loadProgress}%` }}></div>
+            </div>
+            <p className={styles.progressText}>{loadText}</p>
+          </>
+        ) : (
+          <p className={styles.clickToBegin}>{loadText}</p>
+        )}
       </div>
 
       {/* Phase 2: Video Player */}
       <div className={`${styles.fullscreenContainer} ${styles.videoPlayer} ${phase === 'video' ? styles.visible : ''}`}>
-        <video ref={videoRef} className={styles.introVideo} muted playsInline preload="auto"></video>
+        <video ref={videoRef} className={styles.introVideo} playsInline preload="auto"></video> {/* Sound is enabled by default, muted is removed */}
       </div>
       
       {/* Phase 3: Logo Transformation */}

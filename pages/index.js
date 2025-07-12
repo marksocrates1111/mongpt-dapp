@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react'; // CORRECTED: Added useRef
 import CinematicIntro from '../components/CinematicIntro';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useSendTransaction, usePublicClient } from 'wagmi';
