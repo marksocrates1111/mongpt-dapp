@@ -9,7 +9,7 @@ const CinematicIntro = ({ onFinished }) => {
   const videoRef = useRef(null);
 
   useEffect(() => {
-    const videoUrl = 'http://marksocratests.xyz/MonGPT-Intro.mp4'; 
+    const videoUrl = './public/videos/MonGPT-Intro.mp4'; 
 
     const xhr = new XMLHttpRequest();
     xhr.open('GET', videoUrl, true);
