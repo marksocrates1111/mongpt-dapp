@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MonGPT :: System Link Initializing...</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
+        :root {
+            --monad-purple: #B452FF;
+            --background-dark: #0B0A0E;
+            --text-color: #EAEAEA;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--background-dark);
+            font-family: 'Roboto Mono', monospace;
+            color: var(--text-color);
+        }
+
+        .fullscreen-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 1s ease-in-out;
+        }
+
+        /* --- Loading Screen --- */
+        #loader {
+            background-color: var(--background-dark);
+            z-index: 100;
+        }
+
+        .loader-content .logo-char {
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--monad-purple);
+            text-shadow: 0 0 15px var(--monad-purple);
+            opacity: 0;
+            animation: fadeInChar 1s forwards;
+        }
+        
+        #progress-bar-container {
+            width: 300px;
+            height: 4px;
+            background-color: #2a2931;
+            margin-top: 2rem;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: var(--monad-purple);
+            transition: width 0.5s ease-out;
+        }
+
+        #progress-text {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            color: #888;
+        }
+
+        /* --- Video Player --- */
+        #video-player {
+            opacity: 0;
+            z-index: 90;
+            pointer-events: none;
+            background-color: #000;
+        }
+
+        #intro-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* --- Logo Transition --- */
+        #logo-transition {
+            opacity: 0;
+            z-index: 80;
+            pointer-events: none;
+            background-color: var(--background-dark);
+        }
+
+        .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-mark {
+            width: 120px;
+            height: 120px;
+            /* In a real app, use an SVG for crispness */
+            background-image: url('https://raw.githubusercontent.com/marksocrates1111/mongpt-dapp/main/public/logo-mark.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            filter: drop-shadow(0 0 15px var(--monad-purple));
+        }
+
+        .logo-text {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-color);
+            position: relative;
+        }
+        
+        .glitch-char {
+            display: inline-block;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+
+        .glitch-char.hidden {
+            opacity: 0;
+        }
+        
+        /* --- App Container --- */
+        #app-container {
+            opacity: 0;
+            z-index: 70;
+            pointer-events: none;
+            /* This will eventually hold the actual MonGPT chat UI */
+        }
+        
+        /* Animation Keyframes */
+        @keyframes fadeInChar {
+            to { opacity: 1; }
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Phase 1: Loading Screen -->
+    <div id="loader" class="fullscreen-container">
+        <div class="loader-content">
+            <span class="logo-char" style="animation-delay: 0.1s;">M</span>
+            <span class="logo-char" style="animation-delay: 0.2s;">o</span>
+            <span class="logo-char" style="animation-delay: 0.3s;">n</span>
+            <span class="logo-char" style="animation-delay: 0.4s;">G</span>
+            <span class="logo-char" style="animation-delay: 0.5s;">P</span>
+            <span class="logo-char" style="animation-delay: 0.6s;">T</span>
+        </div>
+        <div id="progress-bar-container">
+            <div id="progress-bar"></div>
+        </div>
+        <p id="progress-text">BUFFERING CINEMATIC INTRO...</p>
+    </div>
+
+    <!-- Phase 2: Cinematic Video Player -->
+    <div id="video-player" class="fullscreen-container">
+        <video id="intro-video" muted playsinline preload="auto">
+            <!-- The video source will be set by JavaScript -->
+        </video>
+    </div>
+
+    <!-- Phase 3: Logo Transformation -->
+    <div id="logo-transition" class="fullscreen-container">
+        <div class="logo-container">
+            <div class="logo-mark"></div>
+            <div id="logo-text-transform" class="logo-text">
+                <!-- This will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Phase 4: Main Application -->
+    <div id="app-container" class="fullscreen-container">
+        <h1>MonGPT Interface</h1>
+        <p>(The real chat application would be rendered here)</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const videoUrl = 'https://github.com/marksocrates1111/mongpt-dapp/raw/refs/heads/main/videos/MonGPT-Intro.mp4';
+
+            const loader = document.getElementById('loader');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+
+            const videoPlayer = document.getElementById('video-player');
+            const introVideo = document.getElementById('intro-video');
+
+            const logoTransition = document.getElementById('logo-transition');
+            const logoTextTransform = document.getElementById('logo-text-transform');
+
+            const appContainer = document.getElementById('app-container');
+
+            // --- Step 1: Preload the video ---
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', videoUrl, true);
+            xhr.responseType = 'blob';
+
+            xhr.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = (event.loaded / event.total) * 100;
+                    progressBar.style.width = percentComplete + '%';
+                    progressText.textContent = `DECRYPTING DATA STREAM... ${Math.round(percentComplete)}%`;
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    const videoBlob = xhr.response;
+                    const blobUrl = URL.createObjectURL(videoBlob);
+                    introVideo.src = blobUrl;
+                    progressText.textContent = 'SEQUENCE READY. INITIALIZING...';
+                    
+                    // Fade out loader and start the video
+                    setTimeout(() => {
+                        loader.style.opacity = 0;
+                        videoPlayer.style.opacity = 1;
+                        videoPlayer.style.pointerEvents = 'auto';
+                        introVideo.play();
+                    }, 1000);
+                }
+            };
+            
+            xhr.onerror = () => {
+                progressText.textContent = 'ERROR: FAILED TO LOAD ASSETS.';
+                progressText.style.color = '#ff4d4d';
+            };
+
+            xhr.send();
+
+            // --- Step 2: Listen for video end ---
+            introVideo.onended = () => {
+                // Fade out video and show logo transition
+                videoPlayer.style.opacity = 0;
+                logoTransition.style.opacity = 1;
+                logoTransition.style.pointerEvents = 'auto';
+                
+                // Start the logo transformation animation
+                animateLogo();
+            };
+        });
+
+        // --- Step 3: Animate the logo transformation ---
+        function animateLogo() {
+            const logoTextTransform = document.getElementById('logo-text-transform');
+            const initialText = 'monad';
+            const finalText = 'MonGPT';
+            
+            // Create spans for each character
+            logoTextTransform.innerHTML = initialText.split('').map(char => `<span class="glitch-char">${char}</span>`).join('');
+            const chars = logoTextTransform.querySelectorAll('.glitch-char');
+            
+            const randomChars = '!<>-_\\/[]{}—=+*^?#________';
+            
+            const timeline = [];
+            
+            // Schedule the transformation
+            // m -> M
+            timeline.push(setTimeout(() => glitchChar(chars[0], 'M'), 100));
+            // o -> o
+            timeline.push(setTimeout(() => glitchChar(chars[1], 'o'), 200));
+            // n -> n
+            timeline.push(setTimeout(() => glitchChar(chars[2], 'n'), 300));
+            // a -> G
+            timeline.push(setTimeout(() => glitchChar(chars[3], 'G'), 400));
+            // d -> P
+            timeline.push(setTimeout(() => glitchChar(chars[4], 'P'), 500));
+            
+            // Add the final 'T'
+            timeline.push(setTimeout(() => {
+                const newChar = document.createElement('span');
+                newChar.className = 'glitch-char';
+                newChar.style.opacity = 0;
+                newChar.textContent = 'T';
+                logoTextTransform.appendChild(newChar);
+                glitchChar(newChar, 'T');
+            }, 600));
+
+            // --- Step 4: Transition to the main app ---
+            timeline.push(setTimeout(() => {
+                const logoTransition = document.getElementById('logo-transition');
+                const appContainer = document.getElementById('app-container');
+                logoTransition.style.opacity = 0;
+                appContainer.style.opacity = 1;
+                appContainer.style.pointerEvents = 'auto';
+            }, 2000));
+        }
+
+        function glitchChar(element, finalChar) {
+            let iteration = 0;
+            const interval = setInterval(() => {
+                element.textContent = randomChars[Math.floor(Math.random() * randomChars.length)];
+                element.style.opacity = 1;
+                
+                if (iteration >= 8) { // Number of glitch iterations
+                    clearInterval(interval);
+                    element.textContent = finalChar;
+                }
+                
+                iteration += 1;
+            }, 50); // Speed of the glitch
+        }
+
+    </script>
+</body>
+</html>

@@ -1,16 +1,14 @@
+import { useState, useEffect, useRef } from 'react';
+import CinematicIntro from '../components/CinematicIntro';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useState, useRef, useEffect } from 'react';
 import { useAccount, useSendTransaction, usePublicClient } from 'wagmi';
 import { parseEther } from 'viem';
 import { ArrowUp, Bot, User, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-// --- Configuration ---
-const TRANSACTION_COST = '0.00001'; // Cost per prompt in Testnet MON
-const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD'; // A common burn address
-
-export default function Home() {
+// --- The Main Chat Application Component ---
+const ChatInterface = () => {
   const [messages, setMessages] = useState([
     { text: "Connection established. I am MonGPT, the analytical consciousness of the Monad network. Provide a smart contract, transaction hash, or query for analysis.", sender: 'bot' }
   ]);
@@ -39,8 +37,8 @@ export default function Home() {
     try {
       setLoadingMessage('Awaiting signature in your wallet...');
       hash = await sendTransactionAsync({
-        to: BURN_ADDRESS,
-        value: parseEther(TRANSACTION_COST),
+        to: '0x000000000000000000000000000000000000dEaD',
+        value: parseEther('0.00001'),
       });
 
       setLoadingMessage('Awaiting on-chain confirmation on Monad...');
@@ -57,9 +55,7 @@ export default function Home() {
     }
   };
 
-  // --- REFACTORED: Function to call our backend API ---
   const callApi = async (prompt, txHash) => {
-    // CORRECTED: Create a simple history array that the backend can process.
     const history = messages.filter(m => !m.error).map(msg => ({
         sender: msg.sender,
         text: msg.text
@@ -87,7 +83,6 @@ export default function Home() {
 
   const LoadingState = () => {
     if (!loadingMessage) return null;
-
     return (
         <div className="flex items-center p-4 text-neutral-400 animate-pulse">
             <Loader2 className="animate-spin mr-3" size={20} />
@@ -98,7 +93,6 @@ export default function Home() {
 
   return (
     <div className="bg-[#0B0A0E] text-white min-h-screen flex flex-col font-sans">
-      {/* Header */}
       <header className="flex justify-between items-center p-4 border-b border-[#B452FF]/20 backdrop-blur-sm fixed top-0 left-0 right-0 z-10">
         <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-[#B452FF] to-[#5271FF] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(180,82,255,0.5)]">
@@ -109,7 +103,6 @@ export default function Home() {
         <ConnectButton />
       </header>
 
-      {/* Chat Area */}
       <main className="flex-1 pt-20 pb-28 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4">
           {messages.map((msg, index) => (
@@ -118,9 +111,7 @@ export default function Home() {
                 {msg.sender === 'bot' ? <Bot size={24} /> : <User size={24} />}
               </div>
               <div className={`p-4 rounded-lg max-w-2xl prose prose-invert prose-p:text-neutral-200 prose-headings:text-[#B452FF] prose-strong:text-white prose-code:text-[#f08080] prose-pre:bg-black/20 prose-a:text-[#836EF9] hover:prose-a:text-[#B452FF] ${msg.sender === 'bot' ? 'bg-[#1C1B22] border border-[#B452FF]/20' : 'bg-[#2A2931]'}`}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {msg.text}
-                </ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
               </div>
             </div>
           ))}
@@ -129,7 +120,6 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Input Area */}
       <footer className="fixed bottom-0 left-0 right-0 bg-[#0B0A0E]/80 backdrop-blur-lg border-t border-[#B452FF]/20">
         <div className="max-w-4xl mx-auto p-4">
           <div className="relative">
@@ -152,6 +142,25 @@ export default function Home() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+};
+
+// --- This is the main component that controls the flow ---
+export default function Home() {
+  const [introFinished, setIntroFinished] = useState(false);
+
+  const handleIntroFinish = () => {
+    setIntroFinished(true);
+  };
+
+  return (
+    <div>
+      {introFinished ? (
+        <ChatInterface />
+      ) : (
+        <CinematicIntro onFinished={handleIntroFinish} />
+      )}
     </div>
   );
 }
