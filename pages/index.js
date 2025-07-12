@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'; // CORRECTED: Added useRef
+import { useState, useEffect, useRef } from 'react';
 import CinematicIntro from '../components/CinematicIntro';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useSendTransaction, usePublicClient } from 'wagmi';
@@ -95,9 +95,8 @@ const ChatInterface = () => {
     <div className="bg-[#0B0A0E] text-white min-h-screen flex flex-col font-sans">
       <header className="flex justify-between items-center p-4 border-b border-[#B452FF]/20 backdrop-blur-sm fixed top-0 left-0 right-0 z-10">
         <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#B452FF] to-[#5271FF] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(180,82,255,0.5)]">
-                <Bot size={20} />
-            </div>
+            {/* UPDATED: Using an img tag for the header logo */}
+            <img src="/logo-mark-transparent.png" alt="MonGPT Logo" className="w-8 h-8"/>
             <h1 className="text-xl font-bold tracking-wider">Mon<span className="text-[#B452FF]">GPT</span></h1>
         </div>
         <ConnectButton />
@@ -108,7 +107,8 @@ const ChatInterface = () => {
           {messages.map((msg, index) => (
             <div key={index} className={`flex items-start gap-4 my-6 ${msg.sender === 'bot' ? 'flex-row' : 'flex-row-reverse'}`}>
               <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${msg.sender === 'bot' ? 'bg-gradient-to-br from-[#B452FF] to-[#5271FF]' : 'bg-neutral-700'}`}>
-                {msg.sender === 'bot' ? <Bot size={24} /> : <User size={24} />}
+                {/* UPDATED: Replaced the Bot icon with your custom logo */}
+                {msg.sender === 'bot' ? <img src="/logo-mark.png" alt="MonGPT Avatar" className="w-6 h-6" /> : <User size={24} />}
               </div>
               <div className={`p-4 rounded-lg max-w-2xl prose prose-invert prose-p:text-neutral-200 prose-headings:text-[#B452FF] prose-strong:text-white prose-code:text-[#f08080] prose-pre:bg-black/20 prose-a:text-[#836EF9] hover:prose-a:text-[#B452FF] ${msg.sender === 'bot' ? 'bg-[#1C1B22] border border-[#B452FF]/20' : 'bg-[#2A2931]'}`}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
