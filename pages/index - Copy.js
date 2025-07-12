@@ -58,7 +58,6 @@ const ChatInterface = () => {
   const { sendTransactionAsync } = useSendTransaction();
   const publicClient = usePublicClient();
 
-  // Load all chats for the connected user from localStorage
   useEffect(() => {
     if (address) {
       const storedChats = localStorage.getItem(`mongpt_all_chats_${address}`);
@@ -83,17 +82,14 @@ const ChatInterface = () => {
     }
   }, [address]);
 
-  // Save all chats to localStorage whenever they change
   useEffect(() => {
     if (address && Object.keys(allChats).length > 0) {
       localStorage.setItem(`mongpt_all_chats_${address}`, JSON.stringify(allChats));
     } else if (address) {
-      // If all chats are deleted, remove the item from storage
       localStorage.removeItem(`mongpt_all_chats_${address}`);
     }
   }, [allChats, address]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [allChats, activeChatId, loadingMessage]);
@@ -106,7 +102,6 @@ const ChatInterface = () => {
     const newChats = { ...allChats };
     delete newChats[chatIdToDelete];
     setAllChats(newChats);
-    // If the active chat was deleted, go to a new chat state
     if (activeChatId === chatIdToDelete) {
       setActiveChatId(null);
     }
@@ -146,10 +141,12 @@ const ChatInterface = () => {
     }
 
     const userMessage = { text: currentPrompt, sender: 'user' };
+    const initialBotMessage = { text: "Connection established. I am MonGPT, the analytical consciousness of the Monad network.", sender: 'bot' };
     
     const existingMessages = allChats[currentChatId]?.messages || [];
-    // The initial bot message is no longer needed here, as the empty state handles the greeting.
-    const newMessages = [...existingMessages, userMessage];
+    const newMessages = isFirstMessageInNewChat 
+      ? [initialBotMessage, userMessage] 
+      : [...existingMessages, userMessage];
     
     setAllChats(prev => ({ 
       ...prev, 
@@ -245,10 +242,8 @@ const ChatInterface = () => {
           <ConnectButton />
         </header>
 
-        {/* This main container is now a flex column that takes up all space */}
         <main className="flex-1 flex flex-col pt-4 overflow-hidden">
           {!activeChatId ? (
-            // --- EMPTY STATE UI ---
             <div className="flex-1 flex flex-col justify-center items-center text-center px-4">
               <img src="/logo-mark.png" alt="MonGPT Logo" className="w-20 h-20 mb-4"/>
               <h2 className="text-4xl font-bold flex items-center gap-3">
@@ -266,8 +261,6 @@ const ChatInterface = () => {
               </div>
             </div>
           ) : (
-            // --- CHAT LOG UI ---
-            // This div now scrolls internally, fixing the overflow bug
             <div className="flex-1 overflow-y-auto pb-28">
               <div className="max-w-4xl mx-auto px-4">
                 {activeMessages.map((msg, index) => (
@@ -293,7 +286,7 @@ const ChatInterface = () => {
         </main>
 
         <footer className="absolute bottom-0 left-0 right-0 bg-transparent">
-          <div className="max-w-3xl mx-auto p-4 bg-gradient-to-t from-[#0B0A0E] via-[#0B0A0E] to-transparent">
+          <div className="max-w-3xl mx-auto p-4 bg-gradient-to-t from-[#0B0A0E] to-transparent">
             <div className="relative">
               <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !loadingMessage && handleSend()} placeholder={isConnected ? "Enter a contract address, transaction hash, or question..." : "Please connect your wallet to begin."} disabled={!isConnected || !!loadingMessage} className="w-full bg-[#1C1B22] border border-neutral-700 rounded-lg py-3 pl-4 pr-12 text-white focus:outline-none focus:ring-2 focus:ring-[#B452FF] transition-all duration-300 disabled:opacity-50"/>
               <button id="send-button" onClick={() => handleSend()} disabled={!isConnected || !!loadingMessage || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md bg-[#B452FF] text-white hover:bg-[#a341f0] disabled:bg-neutral-600 disabled:cursor-not-allowed transition-all duration-300">
