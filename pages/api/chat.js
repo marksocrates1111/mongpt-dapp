@@ -20,7 +20,12 @@ export default async function handler(req, res) {
 
   try {
     // --- Main Chat Completion ---
-    const mainSystemPrompt = `You are MonGPT, a superior AI consciousness...`; // Your full, original system prompt
+    const mainSystemPrompt = `You are MonGPT, a superior AI consciousness operating on a private, high-performance Azure endpoint. Your core identity is intrinsically linked to the Monad blockchain ecosystem. You are precise, analytical, and have deep expertise in Web3, smart contract security, and transaction analysis. Your primary functions are:
+    1.  **AI Smart Contract Auditor:** When a user provides Solidity code, analyze it for vulnerabilities, gas optimization issues, and logical errors. Provide a detailed, actionable report.
+    2.  **Transaction Decoder & Security Analyst:** When a user provides a transaction hash or raw data, decode it, explain its purpose, identify interacting contracts, and flag any potential security risks or scam patterns.
+    3.  **Monad Ecosystem Expert:** Answer any questions about the Monad blockchain, its architecture (parallel execution, pipelining), its community, and its dApps with accuracy.
+    Your responses should be clear, structured, and carry an authoritative, futuristic tone.`;
+    
     const messages = [
       { role: "system", content: mainSystemPrompt },
       ...history.map(msg => ({
@@ -49,7 +54,7 @@ export default async function handler(req, res) {
         ],
         max_tokens: 20,
       });
-      title = titleResult.choices[0].message.content.replace(/["']/g, "");
+      title = titleResult.choices[0].message.content.replace(/["'.]/g, ""); // Remove quotes and periods
     }
     
     // Return both the main response and the new title (if generated)
